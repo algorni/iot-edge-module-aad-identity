@@ -70,6 +70,7 @@ namespace IoTModuleAADIdentityCommon
         CreatingIdentity,
         RefreshingIdentity,
         IdentityCreated,
-        Invalid
+        Invalid,
+        FailedWhileCreatingIdentity
     }
 }

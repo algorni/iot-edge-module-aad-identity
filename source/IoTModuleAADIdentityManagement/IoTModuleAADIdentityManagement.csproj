@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <AzureFunctionsVersion>v3</AzureFunctionsVersion>
@@ -7,7 +7,10 @@
     <PackageReference Include="Microsoft.Azure.Devices" Version="1.27.0-preview-004" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.EventGrid" Version="2.1.0" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.EventHubs" Version="4.1.1" />
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="3.0.3" />
+    <PackageReference Include="Microsoft.Graph" Version="3.8.0" />
+    <PackageReference Include="Microsoft.Graph.Auth" Version="1.0.0-preview.5" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.16.0" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="3.0.8" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IoTModuleAADIdentityCommon\IoTModuleAADIdentityCommon.csproj" />

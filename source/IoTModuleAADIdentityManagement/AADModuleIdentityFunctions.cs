@@ -10,6 +10,9 @@ using Newtonsoft.Json;
 using Microsoft.Azure.Devices;
 using System.Threading.Tasks;
 using IoTModuleAADIdentityCommon;
+using Microsoft.Identity.Client;
+using Microsoft.Graph.Auth;
+using Microsoft.Graph;
 
 namespace IoTModuleAADIdentityManagement
 {
@@ -110,17 +113,13 @@ namespace IoTModuleAADIdentityManagement
 
                         updateTwin.Properties.Desired.AADIdentityStatus = updatedStatus;
 
-                        string newTwin = updateTwin.ToJson();
+                        string newTwinJson = updateTwin.ToJson();
 
-                        log.LogDebug($"Updating Module twin\n{newTwin}");
+                        log.LogDebug($"Updating Module twin\n{newTwinJson}");
 
-                        var updateResult = await registryManager.UpdateTwinAsync(deviceId, moduleId, newTwin, deviceTwin.ETag);
+                        var updateResult = await registryManager.UpdateTwinAsync(deviceId, moduleId, newTwinJson, deviceTwin.ETag);
 
                         log.LogInformation($"Module Twin updated to version: {updateResult.Version}");
-
-
-
-
 
 
 
@@ -137,41 +136,68 @@ namespace IoTModuleAADIdentityManagement
 
                         //Create or Update the Identity in AAD
 
+                        //how to use this code 
+                        //0 prerequisites : be admin of a B2C tenant  (tenant name should be lower case)
+                        //1 register an app with secret on your B2C tenant 
+                        //2 provide API permissions Directory.ReadWrite.All -> grant admin consent   https://docs.microsoft.com/en-us/graph/api/user-post-users?view=graph-rest-1.0&tabs=http 
 
+                        string tenantName = System.Environment.GetEnvironmentVariable("b2cTenantName", EnvironmentVariableTarget.Process);
+                        string function_B2C_ClientId = System.Environment.GetEnvironmentVariable("function_B2C_ClientId", EnvironmentVariableTarget.Process);
+                        string function_B2C_ClientSecret = System.Environment.GetEnvironmentVariable("function_B2C_ClientSecret", EnvironmentVariableTarget.Process);
+                        string function_B2C_TenantId = System.Environment.GetEnvironmentVariable("function_B2C_TenantId", EnvironmentVariableTarget.Process);
 
+                        //First you need to identify your function agasint Azure AAD B2c as an app
+                        IConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplicationBuilder
+                        .Create(function_B2C_ClientId) // clientId
+                        .WithTenantId(function_B2C_TenantId) //tenantId
+                        .WithClientSecret(function_B2C_ClientSecret) //clientsecret
+                        .Build();
 
-                        ///TODO TODO TODO
+                        ClientCredentialProvider authProvider = new ClientCredentialProvider(confidentialClientApplication); //this requires : Install-Package Microsoft.Graph.Auth -PreRelease
 
+                        //Then you use this identity to push a new user
+                        GraphServiceClient graphClient = new GraphServiceClient(authProvider);
 
-
-
-                        //Update Module Twin to reflect the operation feedback
-
-                        ///TODO REMOVE THE PASSWORD FROM THE TAG THIS IS JUST FOR TEST 
-
-                        updatedStatus = OperationStatusEnum.IdentityCreated;
-
-                        newTwin =
-                        @"{
-                            tags: {
-                                aadIdentityPassword: '[Password]'
-                            },
-                            properties: {
-                                desired: {
-                                    aadIdentityStatus: '[Status]',
-                                    aadIdentityUserName: '[UserName]'
-                                }
+                        var user = new User
+                        {
+                            AccountEnabled = true,
+                            DisplayName = userName, 
+                            UserPrincipalName = $"{userName}@{tenantName}.onmicrosoft.com",
+                            MailNickname = userName,
+                            PasswordProfile = new PasswordProfile
+                            {
+                                ForceChangePasswordNextSignIn = false,
+                                Password = password
                             }
-                        }".Replace("[UserName]",userName).Replace("[Password]",password).Replace("[Status]", updatedStatus.ToString());
+                        };
+
+                        try
+                        {
+                            log.LogInformation($"Adding User: {userName} to the {tenantName} B2C Tenant");
+
+                            await graphClient.Users
+                                .Request()
+                                .AddAsync(user);
+
+                            //Update Module Twin to reflect the operation feedback
+                            updatedStatus = OperationStatusEnum.IdentityCreated;
+                        }
+                        catch (Exception ex)
+                        {
+                            log.LogError(ex, $"An Exception happened while adding User: {userName} to the {tenantName} B2C Tenant");
+
+                            //Update Module Twin to reflect the operation feedback
+                            updatedStatus = OperationStatusEnum.FailedWhileCreatingIdentity;
+                        }
 
 
                         updateTwin.Tags.AADIdentityPassword = password;
                         updateTwin.Properties.Desired.AADIdentityStatus = updatedStatus;
                         updateTwin.Properties.Desired.AADIdentityUserName = userName;
 
-                        newTwin = updateTwin.ToJson();
+                        newTwinJson = updateTwin.ToJson();
 
-                        log.LogDebug($"Updating Module twin\n{newTwin}");
+                        log.LogDebug($"Updating Module twin\n{newTwinJson}");
 
                         try
                         {
@@ -179,7 +205,7 @@ namespace IoTModuleAADIdentityManagement
                             deviceTwin = await registryManager.GetTwinAsync(deviceId, moduleId);
 
                             //Update Device Twin to notify that the user in the AAD is already created!
-                            updateResult = await registryManager.UpdateTwinAsync(deviceId, moduleId, newTwin, deviceTwin.ETag);
+                            updateResult = await registryManager.UpdateTwinAsync(deviceId, moduleId, newTwinJson, deviceTwin.ETag);
                         }
                         catch (Exception ex)
                         {

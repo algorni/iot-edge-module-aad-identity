@@ -120,10 +120,11 @@ namespace IoTModuleAADIdentityCommon
                 await this.RequestAADOperation(OperationTypeEnum.CreateIdentity);
 
                 // Instantiate the CancellationTokenSource.
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15.0));
+                //var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15.0));
 
-                //wait 15 seconds 
-                while ((!cts.IsCancellationRequested) && (!stopToken.IsCancellationRequested))
+                //wait up to the cancelation token request the cancelation
+                //while ((!cts.IsCancellationRequested) && (!stopToken.IsCancellationRequested))
+                while (!stopToken.IsCancellationRequested)
                 {
                     if (!ModuleTwin.CheckAADOperationStatus(OperationStatusEnum.IdentityCreated))
                     { 
@@ -137,7 +138,6 @@ namespace IoTModuleAADIdentityCommon
                 throw new ApplicationException("AAD Token is not yet ready for this module, please try again later.");
             }
 
-
             if (string.IsNullOrEmpty(_userName))
             {
                 _userName = BuildUserName(_edgeDeviceId, _edgeModuleId);
@@ -149,7 +149,12 @@ namespace IoTModuleAADIdentityCommon
             }
 
 
+            
             //CALL THE AAD TOKEN ENDPOINT to collect the token!!!
+
+
+
+
 
 
 
